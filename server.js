@@ -4,11 +4,12 @@ import NodeCache from 'node-cache';
 import cors from 'cors';
 
 const app = express();
-const cache = new NodeCache({ stdTTL: 300 }); // キャッシュ5分
+const cache = new NodeCache({ stdTTL: 300 }); // キャッシュ有効期限：5分
 const cacheKey = 'multiPrices';
 
 app.use(cors());
 
+// ✅ CoinGeckoに渡す仮想通貨IDリスト
 const ids = [
   'bitcoin',      // BTC
   'ethereum',     // ETH
@@ -19,12 +20,14 @@ const ids = [
   'litecoin',     // LTC
   'cardano',      // ADA
   'avalanche-2',  // AVAX
-  'binancecoin'   // BNB
+  'binancecoin',  // BNB
+  'usd'           // ✅ 為替用（USD → JPY）
 ].join(',');
 
+// CoinGecko API エンドポイント
 const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd,jpy`;
 
-// 🔄 起動時にキャッシュを温める
+// 🔄 起動時にキャッシュを温める（CoinGecko制限対策）
 const warmCache = async () => {
   try {
     const response = await axios.get(url);
@@ -35,11 +38,12 @@ const warmCache = async () => {
   }
 };
 
-warmCache(); // 初期化
+warmCache(); // サーバー起動時に一度データを取得
 
+// 📡 APIエンドポイント：/price
 app.get('/price', async (req, res) => {
   const cached = cache.get(cacheKey);
-  if (cached) return res.json(cached);
+  if (cached) return res.json(cached); // キャッシュがあればそれを返す
 
   try {
     const response = await axios.get(url);
@@ -60,5 +64,6 @@ app.get('/price', async (req, res) => {
   }
 });
 
+// 🌐 ポート指定（Renderでは自動環境変数対応）
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`✅ Server listening on port ${PORT}`));
